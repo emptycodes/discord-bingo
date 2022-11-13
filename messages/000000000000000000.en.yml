@@ -1,0 +1,14 @@
+en:
+  sync_tree_bot: 'Synced!'
+  game_stared: 'Bingo game has started!'
+  game_already_exists_on_the_channel: 'Game already exists!'
+  fields_file_not_exist: 'Fields file doesn’t exist!'
+  template_file_not_exist: 'Template file doesn’t exist!'
+  added_to_game_session_on_dm: 'Do you have a bingo on your board? Type the /bingo command on the game sessions channel!'
+  added_to_game_session_on_channel: 'Psst! A board with fields was sent to your Direct Messages!'
+  player_win_bingo: '%{username} wins %{place} place!'
+  player_already_won_bingo: "You're already on the podium!"
+  player_has_not_bingo: "You don't have bingo on your board!"
+  field_name_not_exists: 'Field with this name not exists!'
+  field_is_marked: 'Marked field: %{field_title}'
+  winners_announcement: 'Winners:'

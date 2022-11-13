@@ -1,0 +1,15 @@
+venv
+.env
+
+.DS_Store
+.idea
+__pycache__/
+
+templates/*.png
+!templates/template.png
+
+fields_files/*.txt
+!fields_files/example.txt
+
+messages/*.yml
+!messages/000000000000000000.en.yml
