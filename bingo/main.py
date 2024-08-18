@@ -1,5 +1,10 @@
 import random
 from datetime import datetime
+from copy import copy
+from collections import defaultdict
+
+from typing import List
+from discord import User
 
 from bingo.helpers import render
 
@@ -18,11 +23,13 @@ class UserIsExactlyPlayerError(Exception):
 
 class Field:
     def render(self):
-        return render.render_field(self.title)
+        title = "TOP SECRET" if self.is_secret else self.title
+        return render.render_field(title)
 
-    def __init__(self, session, title: str):
+    def __init__(self, session, title: str, secret: bool = False):
         self.session = session
         self.title = title
+        self.is_secret = secret
 
         self.marked = False
         self.is_sent = False
@@ -34,19 +41,24 @@ class Field:
         if self.marked:
             return
 
-        self.rendered_field = render.mark_field(self.rendered_field)
+        if self.is_secret:
+            self.rendered_field = render.render_field(self.title)
 
+        self.rendered_field = render.mark_field(self.rendered_field)
         self.session.marked_fields.append(self)
 
-        # players = self.players.copy()
         for player in self.players:
             player.mark(self)
 
         self.marked = True
-        # self.players = self.players.difference(players)
 
     def __iter__(self):
         return self.title
+
+
+class FieldGroup:
+    def __init__(self, fields: list[Field]) -> None:
+        self.fields = fields
 
 
 class Player:
@@ -56,8 +68,10 @@ class Player:
         return self.rendered_board
 
     def __init__(self, session, user):
-        self.session = session
-        self.user = user
+        self.session: Session = session
+        self.user: User = user
+
+        self.username: str = copy(self.user.display_name)
 
         self.bingo = {
             "rows": [0, 0, 1, 0, 0],
@@ -91,12 +105,12 @@ class Player:
         elif row + col == 4:
             self.bingo["diagonal"][1] += 1
 
-    def check(self):
+    def check(self, looser: bool = False):
         self.won = 5 in self.bingo["rows"] or \
                    5 in self.bingo["cols"] or \
                    5 in self.bingo["diagonal"]
 
-        if self.won:
+        if self.won and not looser:
             self.victory_timestamp = datetime.now()
 
             self.session.winners.append(self)
@@ -106,27 +120,50 @@ class Player:
 
 
 class Session:
-    def __init__(self, template_name: str, field_titles):
+    def __init__(self, template_name: str, fields: List[dict], tiles_set_id: int):
         self.template_name = template_name
-        self.field_titles = field_titles
+        self.fields: List[dict[str, str, str]] = fields
+        self.tiles_set_id = tiles_set_id
 
-        self.fields = [Field(self, field_title) for field_title in field_titles]
+        self.fields = self.__get_fields()
         self.marked_fields = []
 
-        self.players = {}
-        self.winners = []
+        self.players: dict[User, Player] = {}
+        self.winners: List[User] = []
 
         if not render.check_template_file(self.template_name):
             raise TemplateNotFoundError("Template not found")
 
+    def __get_fields(self) -> List[Field | FieldGroup]:
+        fields: List[Field | FieldGroup] = []
+
+        grouped_fields: dict[int] = defaultdict(list[str])
+        for field in fields:
+            if field['grouped_by'] != None:
+                fields.append(Field(
+                    self, field['title'], field['secret']
+                ))
+            else:
+                grouped_fields[field['grouped_by']].append(
+                    Field(self, field['title'], field['secret'])
+                )
+
+        for grouped_field in grouped_fields.items():
+            fields.append(FieldGroup(grouped_field))
+
+        return fields
+
     def generate_board(self, player: Player):
         selected_fields = random.sample(self.fields, 24)
         for selected_field in selected_fields:
+            if selected_field is FieldGroup:
+                selected_field = random.sample(selected_field.fields, 1)
+
             selected_field.players.add(player)
 
         return selected_fields
 
-    def add_player(self, discord_user):
+    def add_player(self, discord_user: User):
         if discord_user in self.players:
             raise UserIsExactlyPlayerError("Discord user is a player exactly")
 
